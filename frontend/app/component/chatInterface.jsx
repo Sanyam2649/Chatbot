@@ -1,9 +1,10 @@
-// components/chatInterface.js
-"use client";
 
+"use client";
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, User, Bot, Loader2, Copy, CheckCheck } from 'lucide-react';
+import { Send,  Bot, Loader2, Copy, CheckCheck, Plus , X } from 'lucide-react';
+import { FileUpload } from './fileUpload';
+// import { FileUpload } from './fileUpload';
 
 export function ChatInterface() {
   const [messages, setMessages] = useState([]);
@@ -11,7 +12,14 @@ export function ChatInterface() {
   const [isLoading, setIsLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState(null);
   const messagesEndRef = useRef(null);
-
+  const [showModal , setShowModal] = useState(false);
+  
+  
+  const handleShowModal = () => {
+    setShowModal(!showModal);
+  }
+  
+  console.log(showModal);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -118,20 +126,9 @@ try {
       </div>
 
       {/* Messages Container */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 overflow-y-auto">
         <AnimatePresence>
-          {messages.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-center text-gray-500 py-12"
-            >
-              <Bot className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Start a conversation</h3>
-              <p>Ask me anything or upload files for analysis!</p>
-            </motion.div>
-          ) : (
-            messages.map((message) => (
+          { messages.map((message) => (
               <motion.div
                 key={message.id}
                 initial={{ opacity: 0, y: 10 }}
@@ -142,17 +139,6 @@ try {
                 <div
                   className={`flex max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start space-x-3`}
                 >
-                  {/* Avatar */}
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gradient-to-br from-purple-500 to-blue-500 text-white'
-                    }`}
-                  >
-                    {message.role === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
-                  </div>
-
                   {/* Message Bubble */}
                   <div
                     className={`relative group ${
@@ -208,8 +194,7 @@ try {
                   </div>
                 </div>
               </motion.div>
-            ))
-          )}
+            ))}
         </AnimatePresence>
         
         {/* Loading Indicator */}
@@ -235,7 +220,9 @@ try {
         
         <div ref={messagesEndRef} />
       </div>
-
+      
+       {showModal && <FileUpload onClose={handleShowModal}/>}
+    
       {/* Input Form */}
       <div className="border-t border-gray-200/60 p-6 bg-white/50">
         <form onSubmit={handleSubmit} className="flex space-x-4">
@@ -249,6 +236,7 @@ try {
               className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
+          {!showModal ? <Plus className='w-6 h-6 justify-center items-center mt-3' onClick={handleShowModal}/> : <X className='w-6 h-6 justify-center items-center mt-3' onClick={handleShowModal}/>}
           <motion.button
             type="submit"
             disabled={!input.trim() || isLoading}

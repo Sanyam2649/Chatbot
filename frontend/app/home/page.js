@@ -1,21 +1,22 @@
 // app/page.js
 "use client";
 
-import { useUser, useAuth } from "@clerk/nextjs";
+import { useUser, useAuth, useClerk } from "@clerk/nextjs";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState, useEffect, useRef } from "react";
 import { 
   Brain, Upload, MessageCircle, BarChart3, FileText, 
   Users, Zap, Shield, Settings, Search, Bell, 
   FolderOpen, Database, Cpu, Sparkles, ChevronRight,
-  Home, Bot, FileStack, LineChart
+  Home, Bot, FileStack, LineChart,
+  LogOut
 } from "lucide-react";
 import { ChatInterface } from "../component/chatInterface";
-import { FileUpload } from "../component/fileUpload";
 import LoadingPage from "../component/loadingPage";
 
 export default function Dashboard() {
   const { isSignedIn, user, isLoaded } = useUser();
+  const { signOut } = useClerk();
   const { getToken } = useAuth();
   const [activeTab, setActiveTab] = useState('chat');
   const [authState, setAuthState] = useState('checking');
@@ -26,6 +27,11 @@ export default function Dashboard() {
   useEffect(() => {
     setMounted(true);
   }, []);
+  
+    const handleLogout = async () => {
+    await signOut();
+     window.location.href = "/sign-in";
+  };
 
   // Enhanced authentication state handling
   useEffect(() => {
@@ -87,14 +93,6 @@ export default function Dashboard() {
           >
             Welcome Back
           </motion.h2>
-          <motion.p 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="text-white/70 mb-8 text-lg"
-          >
-            Please sign in to access your AI workspace
-          </motion.p>
           <motion.button
             whileHover={{ scale: 1.05, boxShadow: "0 20px 40px rgba(192, 132, 252, 0.3)" }}
             whileTap={{ scale: 0.95 }}
@@ -142,7 +140,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30 overflow-hidden">
       {/* Enhanced Navigation */}
       <motion.nav 
         initial={{ y: -100, opacity: 0 }}
@@ -161,29 +159,10 @@ export default function Dashboard() {
               </motion.div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  AI-CHAT
+                  AI CHAT
                 </h1>
               </div>
             </div>
-
-            {/* Search Bar */}
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="flex-1 max-w-2xl mx-8"
-            >
-              <div className="relative">
-                <Search className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 transform -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search conversations, files, or ask AI..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-gray-100/80 border-0 rounded-2xl focus:ring-2 focus:ring-purple-500/50 focus:bg-white transition-all duration-300"
-                />
-              </div>
-            </motion.div>
 
             {/* User Menu */}
             <motion.div 
@@ -191,16 +170,7 @@ export default function Dashboard() {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.3 }}
               className="flex items-center space-x-4"
-            >
-              <motion.button 
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <Bell className="w-6 h-6" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </motion.button>
-              
+            > 
               <motion.div 
                 whileHover={{ scale: 1.02 }}
                 className="flex items-center space-x-3 bg-white/80 rounded-2xl p-2 border border-gray-200/60"
@@ -213,138 +183,14 @@ export default function Dashboard() {
                   <p className="text-gray-500 text-xs">{user.primaryEmailAddress?.emailAddress}</p>
                 </div>
               </motion.div>
+              
+               <LogOut onClick={handleLogout} className="color-gradient-to-br from-purple-600 to-blue-600"/>
             </motion.div>
           </div>
         </div>
       </motion.nav>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-8">
-          {/* Enhanced Sidebar */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className={`flex-shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'w-20' : 'w-80'}`}
-          >
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-gray-200/60 overflow-hidden">
-              {/* Sidebar Header */}
-              <div className="p-6 border-b border-gray-200/60">
-                <div className="flex items-center justify-between">
-                  {!sidebarCollapsed && (
-                    <motion.h3 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="font-semibold text-gray-900 text-lg"
-                    >
-                      Navigation
-                    </motion.h3>
-                  )}
-                  <motion.button
-                    whileHover={{ scale: 1.1, rotate: 180 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                    className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors"
-                  >
-                    <ChevronRight className={`w-4 h-4 transition-transform ${sidebarCollapsed ? 'rotate-180' : ''}`} />
-                  </motion.button>
-                </div>
-              </div>
-
-              {/* Navigation Items */}
-              <nav className="p-4 space-y-2">
-                {navItems.map((item, index) => (
-                  <motion.button
-                    key={item.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    whileHover={{ x: 5, scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setActiveTab(item.id)}
-                    className={`w-full flex items-center space-x-4 p-4 rounded-2xl transition-all duration-200 group ${
-                      activeTab === item.id
-                        ? 'bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 shadow-lg shadow-blue-500/10'
-                        : 'text-gray-600 hover:bg-gray-50/80 hover:shadow-lg'
-                    }`}
-                  >
-                    <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${item.color} flex items-center justify-center shadow-lg group-hover:shadow-xl transition-all`}>
-                      <item.icon className="w-6 h-6 text-white" />
-                    </div>
-                    {!sidebarCollapsed && (
-                      <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex-1 text-left"
-                      >
-                        <p className="font-semibold text-gray-900">{item.label}</p>
-                        <p className="text-sm text-gray-500">{item.description}</p>
-                      </motion.div>
-                    )}
-                  </motion.button>
-                ))}
-              </nav>
-
-              {/* Recent Files Section */}
-              {!sidebarCollapsed && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="p-6 border-t border-gray-200/60"
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-semibold text-gray-900">Recent Files</h3>
-                    <Sparkles className="w-5 h-5 text-purple-500" />
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      { name: 'Research Paper.pdf', date: '2 hours ago', icon: FileText },
-                      { name: 'Financial Report.xlsx', date: 'Yesterday', icon: BarChart3 },
-                      { name: 'Project Docs.zip', date: '3 days ago', icon: FolderOpen },
-                    ].map((file, index) => (
-                      <motion.div 
-                        key={index}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.5 + index * 0.1 }}
-                        whileHover={{ x: 5, backgroundColor: "rgba(249, 250, 251, 0.8)" }}
-                        className="flex items-center space-x-3 p-3 rounded-xl bg-gray-50/50 cursor-pointer"
-                      >
-                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm border">
-                          <file.icon className="w-5 h-5 text-gray-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                          <p className="text-xs text-gray-500">{file.date}</p>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-            </div>
-
-            {/* Quick Stats */}
-            {!sidebarCollapsed && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8 }}
-                className="mt-6 bg-gradient-to-br from-purple-600 to-blue-600 rounded-3xl p-6 text-white shadow-xl"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <Cpu className="w-8 h-8 text-white/80" />
-                  <Sparkles className="w-6 h-6 text-yellow-300" />
-                </div>
-                <h4 className="font-bold text-lg mb-2">AI Usage</h4>
-                <p className="text-white/80 text-sm mb-4">23 conversations this week</p>
-                <div className="w-full bg-white/20 rounded-full h-2">
-                  <div className="bg-yellow-400 h-2 rounded-full w-3/4"></div>
-                </div>
-              </motion.div>
-            )}
-          </motion.div>
-
-          {/* Main Content Area */}
           <motion.div
             key={activeTab}
             initial={{ opacity: 0, y: 20 }}
@@ -362,16 +208,6 @@ export default function Dashboard() {
                 className="h-full"
               >
                 {activeTab === 'chat' && <ChatInterface />}
-                {activeTab === 'upload' && <FileUpload />}
-                {activeTab === 'analytics' && (
-                  <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-gray-200/60 p-8 h-96 flex items-center justify-center">
-                    <div className="text-center">
-                      <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">Analytics Dashboard</h3>
-                      <p className="text-gray-600">Coming soon with detailed insights and metrics</p>
-                    </div>
-                  </div>
-                )}
               </motion.div>
             </AnimatePresence>
           </motion.div>

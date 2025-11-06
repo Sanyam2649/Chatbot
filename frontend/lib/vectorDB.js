@@ -23,7 +23,7 @@ export async function getPineconeClient() {
 export async function getPineconeIndex() {
   if (!pineconeIndex) {
     const pc = await getPineconeClient();
-    const indexName = process.env.PINECONE_INDEX_NAME || 'document-chatbot-groq'; // New index name
+    const indexName = process.env.PINECONE_INDEX_NAME || 'document-chatbot-groq';
     
     try {
       const indexes = await pc.listIndexes();
