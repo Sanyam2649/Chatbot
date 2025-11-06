@@ -4,9 +4,10 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send,  Bot, Loader2, Copy, CheckCheck, Plus , X } from 'lucide-react';
 import { FileUpload } from './fileUpload';
-// import { FileUpload } from './fileUpload';
+import { useUser } from '@clerk/nextjs';
 
 export function ChatInterface() {
+  const {user} = useUser();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -50,7 +51,7 @@ try {
     },
     body: JSON.stringify({
       message: input.trim(),
-      history: messages.slice(-10)
+      userId : user?.id
     }),
   });
 

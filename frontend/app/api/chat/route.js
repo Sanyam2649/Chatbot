@@ -1,50 +1,63 @@
-// app/api/chat/route.js - COMPLETELY UPDATED
 import { NextResponse } from 'next/server';
 import { searchSimilarDocuments } from '@/lib/vector-store';
 import groq from '@/lib/ollama';
 
-const quickResponses = {
-  greetings: [
-    "Hello! I'm your document assistant. How can I help you today?",
-    "Hi there! I'm ready to help you search through your documents.",
-    "Greetings! I can answer questions about your uploaded files."
-  ],
-  capabilities: [
-    "I can search through your documents and answer questions based on their content. Just upload some files and ask away!",
-    "I'm specialized in document analysis. I'll help you find information in your PDFs, DOCX files, and text documents."
-  ]
-};
-
 export async function POST(request) {
   try {
-    const { message, history = [] } = await request.json();
-
-    console.log('📨 Received message:', message);
-
+    const { message, userId } = await request.json();
+    
+    console.log(userId , "userId-1");
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
+    const docResults = await searchSimilarDocuments({
+  query: message,
+  userId,
+});
 
-    const userMessage = message.trim().toLowerCase();
-    
-    // Handle quick responses without vector search
-    const quickResponse = getQuickResponse(userMessage);
-    if (quickResponse) {
-      console.log('⚡ Using quick response');
+    if (docResults?.success && docResults.matches?.length > 0) {
+      const context = docResults.matches
+        .map(
+          (match, i) =>
+            `Excerpt ${i + 1} (from ${match.metadata.fileName}):\n${match.text}`
+        )
+        .join('\n\n');
+
+      const messages = [
+        {
+          role: 'system',
+          content: `You are a helpful document assistant. Use the provided context to answer the user's question.
+If the answer is not in the context, say you cannot find it instead of guessing.`
+        },
+        {
+          role: 'user',
+          content: `Context:\n${context}\n\nQuestion: ${message}`
+        }
+      ];
+
+      const response = await groq.chatCompletion(messages, 'llama-3.1-8b-instant', {
+        temperature: 0.1,
+        max_tokens: 1024
+      });
+
       return NextResponse.json({
-        response: quickResponse,
-        sources: [],
-        type: 'quick'
+        response: response.choices[0].message.content,
+        sources: docResults.matches.map(m => ({
+          fileName: m.metadata.fileName,
+          chunkIndex: m.metadata.chunkIndex,
+          score: m.hybridScore
+        })),
+        type: 'document',
+        debug: {
+          message: 'Used document context',
+          matchesFound: docResults.matches.length,
+          timestamp: new Date().toISOString()
+        }
       });
     }
+    // 🧠 <<< END OF ADDED SECTION
 
-    // For now, let's SIMPLIFY and skip vector search to test
-    console.log(`🔍 SIMPLIFIED: Processing message without vector search: "${message}"`);
-    
-    let context = 'No specific document context found. Please upload documents first.';
-    let relevantDocs = [];
-
-    // Prepare messages for Groq - SIMPLIFIED VERSION
+    // Fallback if no relevant docs found
     const messages = [
       { 
         role: 'system', 
@@ -55,24 +68,19 @@ If the user asks about documents or files, let them know they need to upload doc
 User's question: ${message}` 
       },
       { role: 'user', content: message }
-    ];
-
-    // Use NON-STREAMING version first to test
-    console.log('🤖 Calling Groq API (non-streaming for testing)...');
+    ];    
     
     const response = await groq.chatCompletion(messages, 'llama-3.1-8b-instant', {
       temperature: 0.1,
       max_tokens: 1024
     });
 
-    console.log('✅ Got response from Groq');
-
     return NextResponse.json({
       response: response.choices[0].message.content,
       sources: [],
       type: 'ai',
       debug: {
-        message: 'Using simplified non-streaming version',
+        message: 'Using fallback (no document matches)',
         timestamp: new Date().toISOString()
       }
     });
@@ -91,29 +99,29 @@ User's question: ${message}`
   }
 }
 
-function getQuickResponse(userMessage) {
-  const greetings = ['hi', 'hello', 'hey', 'hola', 'greetings', 'good morning', 'good afternoon', 'good evening'];
-  const capabilities = ['what can you do', 'how do you work', 'who are you', 'help', 'capabilities'];
-  const thanks = ['thanks', 'thank you', 'thankyou', 'appreciate it'];
+// function getQuickResponse(userMessage) {
+//   const greetings = ['hi', 'hello', 'hey', 'hola', 'greetings', 'good morning', 'good afternoon', 'good evening'];
+//   const capabilities = ['what can you do', 'how do you work', 'who are you', 'help', 'capabilities'];
+//   const thanks = ['thanks', 'thank you', 'thankyou', 'appreciate it'];
   
-  if (greetings.some(greet => userMessage.includes(greet))) {
-    return quickResponses.greetings[Math.floor(Math.random() * quickResponses.greetings.length)];
-  }
+//   if (greetings.some(greet => new RegExp(`\\b${greet}\\b`, 'i').test(userMessage))) {
+//     return quickResponses.greetings[Math.floor(Math.random() * quickResponses.greetings.length)];
+//   }
   
-  if (capabilities.some(cap => userMessage.includes(cap))) {
-    return quickResponses.capabilities[Math.floor(Math.random() * quickResponses.capabilities.length)];
-  }
+//   if (capabilities.some(cap => userMessage.includes(cap))) {
+//     return quickResponses.capabilities[Math.floor(Math.random() * quickResponses.capabilities.length)];
+//   }
   
-  if (thanks.some(thank => userMessage.includes(thank))) {
-    return "You're welcome! Is there anything else I can help you with?";
-  }
+//   if (thanks.some(thank => userMessage.includes(thank))) {
+//     return "You're welcome! Is there anything else I can help you with?";
+//   }
   
-  if (userMessage.includes('how are you')) {
-    return "I'm functioning well and ready to help you with your documents!";
-  }
+//   if (userMessage.includes('how are you')) {
+//     return "I'm functioning well and ready to help you with your documents!";
+//   }
   
-  return null;
-}
+//   return null;
+// }
 
 export async function GET() {
   try {

@@ -16,7 +16,7 @@ import {
 import { useUser } from "@clerk/clerk-react";
 
 export function FileUpload({ onClose }) {
-  const { isSignedIn } = useUser();
+  const { isSignedIn , user} = useUser();
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
@@ -63,7 +63,12 @@ export function FileUpload({ onClose }) {
     setUploading(true);
     setError(null);
     setSuccess(null);
-
+    
+    if(!user)
+    {
+      setError('User not signIn');
+    }
+    
     try {
       let successCount = 0;
       let errorCount = 0;
@@ -71,10 +76,12 @@ export function FileUpload({ onClose }) {
       for (const file of files) {
         const formData = new FormData();
         formData.append("files", file);
+        formData.append("userId" , user?.id);
+        
 
         const response = await fetch("/api/upload", {
           method: "POST",
-          body: formData,
+          body: formData
         });
 
         if (response.ok) {

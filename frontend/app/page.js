@@ -1,6 +1,6 @@
 'use client';
-import { motion, useMotionValue, useTransform, animate } from "framer-motion";
-import { useRef, useEffect, useState } from "react";
+import { motion, useMotionValue, animate } from "framer-motion";
+import { useEffect, useState } from "react";
 import { ArrowRight, MessageCircle, Sparkles, Zap, Brain, Shield, Bot } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/clerk-react";
@@ -12,9 +12,6 @@ const HomePage = () => {
   const [currentFeature, setCurrentFeature] = useState(0);
   const [mounted, setMounted] = useState(false);
   const count = useMotionValue(0);
-  const rounded = useTransform(count, Math.round);
-  const constraintsRef = useRef(null);
-  
   // Fix: Only run after component mounts
   useEffect(() => {
     setMounted(true);

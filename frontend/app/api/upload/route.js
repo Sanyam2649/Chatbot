@@ -35,7 +35,7 @@ export async function POST(request) {
 
     const formData = await request.formData();
     const files = formData.getAll('files');
-
+    const userId = formData.get('userId');
     if (!files || files.length === 0) {
       return NextResponse.json(
         { error: 'No files provided' },
@@ -77,7 +77,7 @@ export async function POST(request) {
         console.log(`Created ${chunks.length} chunks from ${file.name}`);
         
         // Store in Pinecone (now using Hugging Face for embeddings)
-        const storeResult = await storeDocuments(chunks);
+        const storeResult = await storeDocuments(chunks , userId);
         
         if (storeResult.success) {
           totalChunksProcessed += chunks.length;

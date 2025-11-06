@@ -59,7 +59,7 @@ export async function POST(request) {
         
       } else if (endpoint === 'chat') {
         // Handle chat with Groq
-        const groqModel = model || 'llama-3.1-8b-instant';
+        const groqModel = 'llama-3.1-8b-instant';
         const groqResponse = await groq.chat.completions.create({
           model: groqModel,
           messages: messages,
@@ -80,7 +80,7 @@ export async function POST(request) {
         
       } else if (endpoint === 'generate') {
         // Handle generate endpoint - convert to chat format using Groq
-        const groqModel = model || 'llama-3.1-8b-instant';
+        const groqModel = 'llama-3.1-8b-instant';
         const groqResponse = await groq.chat.completions.create({
           model: groqModel,
           messages: [{ role: 'user', content: prompt }],
@@ -148,14 +148,9 @@ export async function POST(request) {
 // Updated GET method for health check (both services)
 export async function GET() {
   try {
-    // Test Groq connection
-    const groqModels = await groq.models.list();
-    
-    // Test Hugging Face connection
     let hfStatus = 'unknown';
     try {
       if (process.env.HUGGINGFACE_API_KEY) {
-        // Simple validation - check if API key format looks correct
         const apiKey = process.env.HUGGINGFACE_API_KEY;
         hfStatus = apiKey.startsWith('hf_') ? 'configured' : 'invalid_key_format';
       } else {
