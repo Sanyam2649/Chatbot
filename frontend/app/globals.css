@@ -1,0 +1,2 @@
+@layer theme, base, clerk, components, utilities;
+@import 'tailwindcss';
