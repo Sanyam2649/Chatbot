@@ -12,6 +12,7 @@ import {
   ArrowUp,
   X,
   CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { useUser } from "@clerk/clerk-react";
 
@@ -93,9 +94,9 @@ export function FileUpload({ onClose }) {
 
       // Set success or error message based on results
       if (errorCount === 0) {
-        setSuccess(`Successfully uploaded all ${successCount} file${successCount > 1 ? 's' : ''}! Your documents are now being processed.`);
+        setSuccess(`Successfully uploaded  ${successCount} file${successCount > 1 ? 's' : ''}! Your documents are now being processed.`);
       } else if (successCount === 0) {
-        setError(`Failed to upload all ${errorCount} file${errorCount > 1 ? 's' : ''}. Please check your connection and try again.`);
+        setError(`Failed to upload ${errorCount} file${errorCount > 1 ? 's' : ''}. Please check your connection and try again.`);
       } else {
         setSuccess(`Upload completed with ${successCount} successful and ${errorCount} failed upload${errorCount > 1 ? 's' : ''}.`);
       }
@@ -155,6 +156,7 @@ export function FileUpload({ onClose }) {
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6 relative">
+      <XCircle onClick={onClose} className="items-end"/>
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -288,7 +290,9 @@ export function FileUpload({ onClose }) {
         {success && (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+             animate={{ opacity: success ? 0 : 1 , y:0 }}
+             transition={{ duration: 0.5 }}
+            onAnimationComplete={() => success && onClose?.()}
             className="p-4 rounded-lg bg-green-50 border border-green-200 text-green-700 flex items-start gap-3"
           >
             <CheckCircle className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />

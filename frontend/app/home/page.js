@@ -21,8 +21,6 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('chat');
   const [authState, setAuthState] = useState('checking');
   const [mounted, setMounted] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     setMounted(true);
@@ -37,11 +35,9 @@ const handleLogout = async () => {
       body: JSON.stringify({ userId: user.id }),
     });
     await signOut();
-    window.location.href = "/sign-in";
   } catch (error) {
     console.error("Error during logout cleanup:", error);
     await signOut();
-    window.location.href = "/sign-in";
   }
 };
 
@@ -70,11 +66,6 @@ const handleLogout = async () => {
     checkAuthState();
   }, [isLoaded, isSignedIn, user, getToken]);
 
-  // Navigation items with improved structure
-  const navItems = [
-    { id: 'chat', label: 'AI Assistant', icon: Bot, description: 'Chat with AI', color: 'from-blue-500 to-cyan-500' },
-    { id: 'upload', label: 'File Upload', icon: FileStack, description: 'Upload documents', color: 'from-green-500 to-emerald-500' },
-  ];
 
   // Show loading state
   if (!isLoaded || authState === 'loading' || !mounted) {

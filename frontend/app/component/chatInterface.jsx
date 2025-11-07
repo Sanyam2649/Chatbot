@@ -2,7 +2,7 @@
 "use client";
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send,  Bot, Loader2, Copy, CheckCheck, Plus , X } from 'lucide-react';
+import { Send,  Bot, Loader2, Copy, CheckCheck, Plus , X, Paperclip } from 'lucide-react';
 import { FileUpload } from './fileUpload';
 import { useUser } from '@clerk/nextjs';
 
@@ -112,7 +112,10 @@ try {
   };
 
   return (
-    <div className="flex flex-col h-[600px] bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-gray-200/60 overflow-hidden">
+    <>
+     {showModal ? (<FileUpload onClose={handleShowModal}/>)
+     :
+    (  <div className="flex flex-col h-[600px] bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-gray-200/60 overflow-hidden">
       {/* Chat Header */}
       <div className="bg-gradient-to-r from-purple-600 to-blue-600 p-6 text-white">
         <div className="flex items-center space-x-3">
@@ -221,9 +224,6 @@ try {
         
         <div ref={messagesEndRef} />
       </div>
-      
-       {showModal && <FileUpload onClose={handleShowModal}/>}
-    
       {/* Input Form */}
       <div className="border-t border-gray-200/60 p-6 bg-white/50">
         <form onSubmit={handleSubmit} className="flex space-x-4">
@@ -237,7 +237,7 @@ try {
               className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
-          {!showModal ? <Plus className='w-6 h-6 justify-center items-center mt-3' onClick={handleShowModal}/> : <X className='w-6 h-6 justify-center items-center mt-3' onClick={handleShowModal}/>}
+          {!showModal && <Paperclip className='w-6 h-6 justify-center items-center mt-3' onClick={handleShowModal}/>}
           <motion.button
             type="submit"
             disabled={!input.trim() || isLoading}
@@ -254,6 +254,7 @@ try {
           </motion.button>
         </form>
       </div>
-    </div>
+    </div>)}
+    </>
   );
 }

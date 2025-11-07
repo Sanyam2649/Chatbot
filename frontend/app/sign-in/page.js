@@ -1,13 +1,14 @@
 // app/sign-in/page.js
 "use client";
 
-import { useSignIn } from "@clerk/nextjs";
+import { useSignIn, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, ArrowRight, LogIn, Brain } from "lucide-react";
 
 export default function SignInPage() {
+  const {user} = useUser();
   const { isLoaded, signIn, setActive } = useSignIn();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,6 +16,12 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  
+  useEffect(() => {
+  if (user) {
+    router.replace("/home");
+  }
+}, [user, router]);
 
   // Debug effect
   useEffect(() => {
@@ -51,8 +58,6 @@ export default function SignInPage() {
         
         // Wait for Clerk to fully update state
         await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        console.log("🔄 Redirecting to dashboard...");
         router.push("/home");
         
       } else {
@@ -73,7 +78,6 @@ export default function SignInPage() {
     signIn.authenticateWithRedirect({
       strategy,
       redirectUrl: "/home",
-      redirectUrlComplete: "/",
     });
   };
 
@@ -91,7 +95,7 @@ export default function SignInPage() {
       </div>
     );
   }
-
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Animation */}

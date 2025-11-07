@@ -15,10 +15,42 @@ export default function SignUpPage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  
+  const validate = () => {
+  const newErrors = {};
+
+  const nameRegex = /^[A-Za-z\s]{2,}$/;
+
+  if (!firstName.trim()) {
+    newErrors.firstName = "First name is required.";
+  } else if (!nameRegex.test(firstName)) {
+    newErrors.firstName = "Enter a valid first name.";
+  }
+
+ if (!nameRegex.test(lastName)) {
+    newErrors.lastName = "Enter a valid last name.";
+  }
+  if (!email.trim()) {
+    newErrors.email = "Email is required.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    newErrors.email = "Enter a valid email address.";
+  }
+
+  if (!password.trim()) {
+    newErrors.password = "Password is required.";
+  } else if (password.length < 8) {
+    newErrors.password = "Password must be at least 8 characters.";
+  } 
+
+  setError(newErrors);
+  return Object.keys(newErrors).length === 0;
+};
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!isLoaded) return;
+    if(!validate()) return;
 
     setLoading(true);
     setError("");
@@ -55,7 +87,7 @@ export default function SignUpPage() {
 
       if (completeSignUp.status === "complete") {
         await setActive({ session: completeSignUp.createdSessionId });
-        window.location.href = "/";
+        window.location.href = "/home";
       }
     } catch (err) {
       setError(err.errors?.[0]?.message || "An error occurred during verification");
@@ -63,6 +95,7 @@ export default function SignUpPage() {
       setLoading(false);
     }
   };
+
 
 if (!isLoaded) {
   return (
@@ -493,15 +526,18 @@ return (
             </p>
           </motion.div>
 
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              className="bg-red-500/10 border border-red-500/20 text-red-200 px-4 py-3 rounded-xl text-sm backdrop-blur-sm"
-            >
-              {error}
-            </motion.div>
-          )}
+         {error && (
+  <motion.div
+    initial={{ opacity: 0, height: 0 }}
+    animate={{ opacity: 1, height: "auto" }}
+    className="bg-red-500/10 border border-red-500/20 text-red-200 px-4 py-3 rounded-xl text-sm backdrop-blur-sm space-y-1"
+  >
+    {Object.entries(error).map(([field, message]) => (
+      <p key={field}>• {message}</p>
+    ))}
+  </motion.div>
+)}
+
 
           <motion.button
             whileHover={{ scale: 1.03, y: -2 }}
