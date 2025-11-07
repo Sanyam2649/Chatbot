@@ -150,7 +150,7 @@ export async function deleteVectorsByUserId(userId) {
 
     console.log(`🗑️ Deleting all vectors for user: ${userId}`);
     const ns = await index.namespace("");
-    const deleteResponse = await ns.delete({
+    const deleteResponse = await ns.deleteMany({
       filter: { userId: userId }
     });
 
