@@ -38,10 +38,7 @@ export default function SignUpPage() {
 
   if (!password.trim()) {
     newErrors.password = "Password is required.";
-  } else if (password.length < 8) {
-    newErrors.password = "Password must be at least 8 characters.";
-  } 
-
+    }
   setError(newErrors);
   return Object.keys(newErrors).length === 0;
 };
@@ -415,7 +412,12 @@ return (
                   id="firstName"
                   type="text"
                   value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^[A-Za-z\s]*$/.test(value)) {
+                      setFirstName(value);
+                    }
+                  }}
                   placeholder="John"
                   className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-white/40 transition-all duration-300 backdrop-blur-sm"
                   required
@@ -434,7 +436,12 @@ return (
                   id="lastName"
                   type="text"
                   value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (/^[A-Za-z\s]*$/.test(value)) {
+                      setLastName(value);
+                    }
+                  }}
                   placeholder="Doe"
                   className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-white/40 transition-all duration-300 backdrop-blur-sm"
                   required
