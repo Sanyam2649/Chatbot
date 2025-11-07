@@ -1,10 +1,14 @@
 "use client";
-import { useSignUp } from "@clerk/nextjs";
-import { useState } from "react";
+import { useSignUp, useUser } from "@clerk/nextjs";
+import {useState } from "react";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, CheckCircle, UserPlus } from "lucide-react";
+import { useRouter } from "next/navigation";
+
 
 export default function SignUpPage() {
+  const {user} = useUser();
+  const router = useRouter();
   const { isLoaded, signUp, setActive } = useSignUp();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,39 +19,30 @@ export default function SignUpPage() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
-  const validate = () => {
-  const newErrors = {};
+  const [fieldErrors, setFieldErrors] = useState({}); 
 
-  const nameRegex = /^[A-Za-z\s]{2,}$/;
+   const validate = () => {
+    const newErrors = {};
+    const nameRegex = /^[A-Za-z\s]{2,}$/;
 
-  if (!firstName.trim()) {
-    newErrors.firstName = "First name is required.";
-  } else if (!nameRegex.test(firstName)) {
-    newErrors.firstName = "Enter a valid first name.";
-  }
+    if (!firstName.trim()) newErrors.firstName = "First name is required.";
+    else if (!nameRegex.test(firstName)) newErrors.firstName = "Enter a valid first name.";
 
- if (!nameRegex.test(lastName)) {
-    newErrors.lastName = "Enter a valid last name.";
-  }
-  if (!email.trim()) {
-    newErrors.email = "Email is required.";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    newErrors.email = "Enter a valid email address.";
-  }
+    if (!lastName.trim()) newErrors.lastName = "Last name is required.";
+    else if (!nameRegex.test(lastName)) newErrors.lastName = "Enter a valid last name.";
 
-  if (!password.trim()) {
-    newErrors.password = "Password is required.";
-    }
-  setError(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+    if (!email.trim()) newErrors.email = "Email is required.";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) newErrors.email = "Enter a valid email address.";
 
+    if (!password.trim()) newErrors.password = "Password is required.";
+
+    setFieldErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!isLoaded) return;
-    if(!validate()) return;
+   e.preventDefault();
+    if (!isLoaded || !validate()) return;
 
     setLoading(true);
     setError("");
@@ -416,12 +411,15 @@ return (
                     const value = e.target.value;
                     if (/^[A-Za-z\s]*$/.test(value)) {
                       setFirstName(value);
+                      setFieldErrors((prev) => ({ ...prev, firstName: "" }));
                     }
                   }}
                   placeholder="John"
                   className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-white/40 transition-all duration-300 backdrop-blur-sm"
                   required
                 />
+                              {fieldErrors.firstName && <p className="text-red-400 text-xs mt-2">{fieldErrors.firstName}</p>}
+
               </div>
             </div>
 
@@ -440,12 +438,15 @@ return (
                     const value = e.target.value;
                     if (/^[A-Za-z\s]*$/.test(value)) {
                       setLastName(value);
+                      setFieldErrors((prev) => ({ ...prev, lastName: "" }));
                     }
                   }}
                   placeholder="Doe"
                   className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-white/40 transition-all duration-300 backdrop-blur-sm"
                   required
                 />
+                              {fieldErrors.lastName && <p className="text-red-400 text-xs mt-2">{fieldErrors.lastName}</p>}
+
               </div>
             </div>
           </motion.div>
@@ -466,11 +467,15 @@ return (
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value); 
+                  setFieldErrors((prev) => ({ ...prev, email: "" }));
+                }}
                 placeholder="john@example.com"
                 className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-white/40 transition-all duration-300 backdrop-blur-sm"
                 required
               />
+              {fieldErrors.email && <p className="text-red-400 text-xs mt-2">{fieldErrors.email}</p>}
             </div>
           </motion.div>
 
@@ -490,7 +495,9 @@ return (
                 id="password"
                 type={showPassword ? "text" : "password"}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {setPassword(e.target.value);
+                  setFieldErrors((prev) => ({ ...prev, password: "" }));
+                }}
                 placeholder="••••••••"
                 className="w-full pl-12 pr-12 py-4 bg-white/5 border border-white/10 rounded-xl focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500/50 text-white placeholder-white/40 transition-all duration-300 backdrop-blur-sm"
                 required
@@ -504,6 +511,8 @@ return (
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </motion.button>
+                            {fieldErrors.password && <p className="text-red-400 text-xs mt-2">{fieldErrors.password}</p>}
+
             </div>
           </motion.div>
 
@@ -539,9 +548,7 @@ return (
     animate={{ opacity: 1, height: "auto" }}
     className="bg-red-500/10 border border-red-500/20 text-red-200 px-4 py-3 rounded-xl text-sm backdrop-blur-sm space-y-1"
   >
-    {Object.entries(error).map(([field, message]) => (
-      <p key={field}>• {message}</p>
-    ))}
+   {error}
   </motion.div>
 )}
 

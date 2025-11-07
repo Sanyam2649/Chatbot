@@ -16,12 +16,6 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-  
-  useEffect(() => {
-  if (user) {
-    router.replace("/home");
-  }
-}, [user, router]);
 
   // Debug effect
   useEffect(() => {
