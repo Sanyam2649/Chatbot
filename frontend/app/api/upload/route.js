@@ -77,7 +77,7 @@ export async function POST(request) {
         console.log(`Created ${chunks.length} chunks from ${file.name}`);
         
         // Store in Pinecone (now using Hugging Face for embeddings)
-        const storeResult = await storeDocuments(chunks , userId);
+        const storeResult = await storeDocuments({documents : chunks , userId});
         
         if (storeResult.success) {
           totalChunksProcessed += chunks.length;

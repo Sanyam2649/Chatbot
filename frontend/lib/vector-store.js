@@ -1,7 +1,7 @@
 import { getPineconeIndex } from './vectorDB';
 import hfEmbeddings from './huggingFace';
 
-export async function storeDocuments(documents) {
+export async function storeDocuments({documents, userId}) {
   const index = await getPineconeIndex();
   
   try {
@@ -24,7 +24,8 @@ export async function storeDocuments(documents) {
         text: doc.text.substring(0, 1000), // Store first 1000 chars for preview
         uploadedAt: doc.metadata.uploadedAt,
         pageCount: doc.metadata.pageCount || 0,
-        chunkId: doc.metadata.chunkId
+        chunkId: doc.metadata.chunkId,
+        userId : userId
       }
     }));
     
@@ -46,36 +47,36 @@ export async function storeDocuments(documents) {
   }
 }
 
-export async function searchSimilarDocuments(query, limit = 5) {
+export async function searchSimilarDocuments({ query, limit = 5, userId }) {
   const index = await getPineconeIndex();
-  
+
   try {
-    console.log(`🔍 Searching for: "${query.substring(0, 50)}..."`);
-    
-    // Generate embedding for the query using Hugging Face
+    console.log(`🔍 Searching for: "${query.substring(0, 50)}..." (User: ${userId})`);
+
+    // Generate embedding for the query
     const queryEmbedding = await hfEmbeddings.generateEmbedding(query);
-    
-    if (!queryEmbedding) {
-      throw new Error('Failed to generate query embedding');
-    }
-    
-    // Query Pinecone
-    const searchResponse = await index.query({
+    if (!queryEmbedding) throw new Error('Failed to generate query embedding');
+
+    // Query Pinecone with userId filter
+    const searchResponse = await index.namespace('__default__').query({
       vector: queryEmbedding,
       topK: Math.max(limit * 3, 15),
       includeMetadata: true,
-      includeValues: false
+      includeValues: false,
+      filter: {
+        userId: userId, // Only fetch results belonging to this user
+      },
     });
-    
-    if (searchResponse.matches.length === 0) {
+
+    if (!searchResponse.matches?.length) {
       return {
         success: true,
         matches: [],
         totalFound: 0,
-        message: "No matches found"
+        message: "No matches found for this user",
       };
     }
-    
+
     // Enhanced scoring
     const scoredMatches = searchResponse.matches.map(match => ({
       id: match.id,
@@ -88,33 +89,35 @@ export async function searchSimilarDocuments(query, limit = 5) {
         chunkIndex: match.metadata.chunkIndex,
         totalChunks: match.metadata.totalChunks,
         uploadedAt: match.metadata.uploadedAt,
-        chunkId: match.metadata.chunkId
-      }
+        chunkId: match.metadata.chunkId,
+        userId: match.metadata.userId,
+      },
     }));
-    
-    // Filter and sort
+
+    // Filter & sort results
     const relevantMatches = scoredMatches
-      .filter(match => match.hybridScore >= 0.15)
+      .filter(m => m.hybridScore >= 0.15)
       .sort((a, b) => b.hybridScore - a.hybridScore)
       .slice(0, limit);
-    
-    console.log(`✅ Found ${relevantMatches.length} relevant matches`);
+
+    console.log(`✅ Found ${relevantMatches.length} relevant matches for ${userId}`);
+
     return {
       success: true,
       matches: relevantMatches.length > 0 ? relevantMatches : scoredMatches.slice(0, limit),
       totalFound: searchResponse.matches.length,
-      message: `Found ${relevantMatches.length} relevant matches`
+      message: `Found ${relevantMatches.length} relevant matches`,
     };
-    
   } catch (error) {
     console.error('❌ Error searching documents:', error);
     return {
       success: false,
       error: error.message,
-      matches: []
+      matches: [],
     };
   }
 }
+
 
 // Get statistics about stored vectors
 export async function getVectorStats() {
@@ -137,41 +140,36 @@ export async function getVectorStats() {
   }
 }
 
-// Delete vectors by file name
-export async function deleteVectorsByFileName(fileName) {
+// lib/vector-store.js
+export async function deleteVectorsByUserId(userId) {
   try {
     const index = await getPineconeIndex();
-    
-    // First, find all vectors for this file
-    const searchResponse = await index.query({
-      vector: Array(384).fill(0), // Dummy vector matching the 384-dimension
-      topK: 10000,
-      includeMetadata: true,
-      filter: { fileName: { $eq: fileName } }
+    console.log(Object.keys(index))
+
+    if (!userId) throw new Error("User ID is required to delete vectors");
+
+    console.log(`🗑️ Deleting all vectors for user: ${userId}`);
+    const ns = await index.namespace("");
+    const deleteResponse = await ns.delete({
+      filter: { userId: userId }
     });
-    
-    if (searchResponse.matches.length === 0) {
-      return { success: true, deleted: 0, message: 'No vectors found for this file' };
-    }
-    
-    // Delete the vectors
-    const idsToDelete = searchResponse.matches.map(match => match.id);
-    await index.deleteMany(idsToDelete);
-    
+
     return {
       success: true,
-      deleted: idsToDelete.length,
-      message: `Deleted ${idsToDelete.length} vectors for ${fileName}`
+      message: `Deleted all vectors for user ${userId}`,
+      response: deleteResponse,
     };
-    
   } catch (error) {
-    console.error('❌ Error deleting vectors:', error);
+    console.error("❌ Error deleting vectors by user:", error);
     return {
       success: false,
-      error: error.message
+      error: error.message,
     };
   }
 }
+
+
+
 
 // Enhanced hybrid scoring
 function calculateHybridScore(match, query) {
@@ -210,41 +208,4 @@ function generateVectorId(fileName, chunkIndex) {
   const timestamp = Date.now();
   const safeFileName = fileName.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);
   return `doc_${safeFileName}_${timestamp}_${chunkIndex}`;
-}
-
-// Add this function to lib/vector-store.js
-export async function debugVectorStore() {
-  try {
-    const index = await getPineconeIndex();
-    const stats = await index.describeIndexStats();
-    
-    console.log('🔍 VECTOR STORE DEBUG INFO:');
-    console.log('Total vectors:', stats.totalVectorCount);
-    console.log('Dimension:', stats.dimension);
-    console.log('Index fullness:', stats.indexFullness);
-    
-    // Sample query to test
-    const testQuery = 'test query';
-    const queryEmbedding = Array(384).fill(0.1); // Simple test embedding
-    const testResults = await index.query({
-      vector: queryEmbedding,
-      topK: 5,
-      includeMetadata: true,
-    });
-    
-    console.log('Test query results:', testResults.matches.length, 'matches');
-    testResults.matches.forEach((match, index) => {
-      console.log(`Match ${index + 1}:`, {
-        id: match.id,
-        score: match.score,
-        fileName: match.metadata?.fileName,
-        textPreview: match.metadata?.text?.substring(0, 100)
-      });
-    });
-    
-    return { success: true, stats, testResults };
-  } catch (error) {
-    console.error('Vector store debug failed:', error);
-    return { success: false, error: error.message };
-  }
 }

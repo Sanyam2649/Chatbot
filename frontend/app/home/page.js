@@ -28,10 +28,23 @@ export default function Dashboard() {
     setMounted(true);
   }, []);
   
-    const handleLogout = async () => {
+const handleLogout = async () => {
+  try {
+    if (!user?.id) return;
+    await fetch("/api/deleteRecord", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: user.id }),
+    });
     await signOut();
-     window.location.href = "/sign-in";
-  };
+    window.location.href = "/sign-in";
+  } catch (error) {
+    console.error("Error during logout cleanup:", error);
+    await signOut();
+    window.location.href = "/sign-in";
+  }
+};
+
 
   // Enhanced authentication state handling
   useEffect(() => {

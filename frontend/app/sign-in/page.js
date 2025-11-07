@@ -53,7 +53,7 @@ export default function SignInPage() {
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         console.log("🔄 Redirecting to dashboard...");
-        router.push("/");
+        router.push("/home");
         
       } else {
         console.log("❌ Sign in incomplete:", result);

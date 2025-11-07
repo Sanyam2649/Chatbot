@@ -5,8 +5,7 @@ import groq from '@/lib/ollama';
 export async function POST(request) {
   try {
     const { message, userId } = await request.json();
-    
-    console.log(userId , "userId-1");
+
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
