@@ -4,8 +4,7 @@ import groq from '@/lib/ollama';
 
 export async function POST(request) {
   try {
-    const { message, userId } = await request.json();
-
+    const { message, userId , isDeepThinking } = await request.json();
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
@@ -33,10 +32,14 @@ If the answer is not in the context, say you cannot find it instead of guessing.
           content: `Context:\n${context}\n\nQuestion: ${message}`
         }
       ];
-
-      const response = await groq.chatCompletion(messages, 'llama-3.1-8b-instant', {
-        temperature: 0.1,
-        max_tokens: 1024
+      
+      const selectedModel = isDeepThinking
+        ? process.env.HIGHER_MODAL
+        : process.env.NORMAL_MODAL;
+        
+      const response = await groq.chatCompletion(messages, selectedModel, {
+        temperature: isDeepThinking ? 0.2 : 0.1,
+        max_tokens: isDeepThinking ? 4096 : 1024,
       });
 
       return NextResponse.json({
@@ -54,25 +57,36 @@ If the answer is not in the context, say you cannot find it instead of guessing.
         }
       });
     }
-    // 🧠 <<< END OF ADDED SECTION
 
-    // Fallback if no relevant docs found
-    const messages = [
-      { 
-        role: 'system', 
-        content: `You are a helpful AI assistant. Answer the user's question clearly and concisely. 
-        
-If the user asks about documents or files, let them know they need to upload documents first to get document-specific answers.
+   const messages = [
+  {
+    role: "system",
+    content: `You are a calm, intelligent AI assistant who responds conversationally but with focus. 
+Keep answers clear, relevant, and human-like — not robotic. 
 
-User's question: ${message}` 
-      },
-      { role: 'user', content: message }
-    ];    
+If the user greets you (e.g., "hi", "hello", "hey"), respond naturally with a brief, warm greeting back. 
+If they ask a question, answer it directly and helpfully. 
+If they mention documents or files, tell them they need to upload documents first for document-specific answers.
+
+Never over-explain or repeat yourself unless asked. Stay concise and helpful.
+
+User’s message: ${message}`
+  },
+  { role: "user", content: message }
+];
+
     
-    const response = await groq.chatCompletion(messages, 'llama-3.1-8b-instant', {
-      temperature: 0.1,
-      max_tokens: 1024
-    });
+  const selectedModel = isDeepThinking 
+  ? process.env.HIGHER_MODAL
+  : process.env.NORMAL_MODAL;
+  
+   console.log(selectedModel);
+
+
+const response = await groq.chatCompletion(messages, selectedModel, {
+  temperature: isDeepThinking ? 0.2 : 0.1,
+  max_tokens: isDeepThinking ? 4096 : 1024, 
+});
 
     return NextResponse.json({
       response: response.choices[0].message.content,

@@ -2,7 +2,7 @@
 "use client";
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send,  Bot, Loader2, Copy, CheckCheck, Plus , X, Paperclip } from 'lucide-react';
+import { Send,  Bot, Loader2, Copy, CheckCheck, Plus , X, Paperclip, Lightbulb } from 'lucide-react';
 import { FileUpload } from './fileUpload';
 import { useUser } from '@clerk/nextjs';
 
@@ -14,13 +14,16 @@ export function ChatInterface() {
   const [copiedMessageId, setCopiedMessageId] = useState(null);
   const messagesEndRef = useRef(null);
   const [showModal , setShowModal] = useState(false);
+  const [isDeepThinking , setIsDeepThinking] = useState(false);
   
   
   const handleShowModal = () => {
     setShowModal(!showModal);
   }
   
-  console.log(showModal);
+  const handleToggleDeepThinking = () => {
+    setIsDeepThinking(!isDeepThinking);
+  }  
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -51,7 +54,8 @@ try {
     },
     body: JSON.stringify({
       message: input.trim(),
-      userId : user?.id
+      userId : user?.id,
+      isDeepThinking : isDeepThinking
     }),
   });
 
@@ -225,35 +229,107 @@ try {
         <div ref={messagesEndRef} />
       </div>
       {/* Input Form */}
-      <div className="border-t border-gray-200/60 p-6 bg-white/50">
-        <form onSubmit={handleSubmit} className="flex space-x-4">
-          <div className="flex-1 relative">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message..."
-              disabled={isLoading}
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            />
+      <div className="border-t border-gray-200/60 p-4 sm:p-6 bg-white/50">
+  <form
+    onSubmit={handleSubmit}
+    className="flex flex-col sm:flex-row sm:items-end gap-3 sm:gap-4 w-full"
+  >
+    {/* Input Container */}
+    <div className="flex-1 relative bg-white border border-gray-200 rounded-2xl px-3 py-2 focus-within:ring-2 focus-within:ring-purple-500/50 transition-all duration-200 w-full">
+      <div className="flex items-start gap-2 sm:gap-3">
+        {/* Deep Thinking Button */}
+        <button
+          type="button"
+          onClick={handleToggleDeepThinking}
+          disabled={input.length > 500}
+          className={`p-2 rounded-lg transition-all flex items-center justify-center shrink-0 ${
+            input.length > 500
+              ? 'text-gray-300 cursor-not-allowed'
+              : isDeepThinking
+              ? 'text-purple-600 bg-purple-50 shadow-inner'
+              : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+          }`}
+          title={
+            input.length > 500
+              ? 'Too long for deep thinking mode'
+              : isDeepThinking
+              ? 'Deep Thinking enabled'
+              : 'Enable Deep Thinking'
+          }
+        >
+          <Lightbulb
+            className={`w-5 h-5 sm:w-6 sm:h-6 transition-transform ${
+              isDeepThinking ? 'scale-110' : 'scale-100'
+            }`}
+          />
+        </button>
+
+        {/* Input + Counter */}
+        <div className="flex flex-col flex-1 min-w-0">
+          <textarea
+            value={input}
+            onChange={(e) => {
+              const value = e.target.value;
+              const limit = isDeepThinking ? 500 : 1000;
+              if (value.length <= limit) setInput(value);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSubmit(e);
+              }
+            }}
+            placeholder="Type your message..."
+            disabled={isLoading}
+            rows={1}
+            className="w-full bg-transparent border-none focus:outline-none resize-none text-gray-800 placeholder:text-gray-400 disabled:opacity-50 text-sm sm:text-base"
+          />
+
+          {/* Character Counter */}
+          <div className="flex justify-end mt-1">
+            <span
+              className={`text-[10px] sm:text-xs ${
+                input.length > (isDeepThinking ? 500 * 0.9 : 1000 * 0.9)
+                  ? 'text-red-500'
+                  : 'text-gray-400'
+              }`}
+            >
+              {input.length}/{isDeepThinking ? 500 : 1000}
+            </span>
           </div>
-          {!showModal && <Paperclip className='w-6 h-6 justify-center items-center mt-3' onClick={handleShowModal}/>}
-          <motion.button
-            type="submit"
-            disabled={!input.trim() || isLoading}
-            whileHover={{ scale: isLoading ? 1 : 1.05 }}
-            whileTap={{ scale: isLoading ? 1 : 0.95 }}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-2xl font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center space-x-2"
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-            <span>Send</span>
-          </motion.button>
-        </form>
+        </div>
       </div>
+    </div>
+
+    {/* File & Send Buttons */}
+    <div className="flex items-center justify-between sm:justify-end gap-3">
+      {!showModal && (
+        <button
+          type="button"
+          onClick={handleShowModal}
+          className="p-2 sm:p-3 rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center"
+        >
+          <Paperclip className="w-5 h-5 sm:w-6 sm:h-6 text-gray-600" />
+        </button>
+      )}
+
+      <motion.button
+        type="submit"
+        disabled={!input.trim() || isLoading}
+        whileHover={{ scale: isLoading ? 1 : 1.05 }}
+        whileTap={{ scale: isLoading ? 1 : 0.95 }}
+        className="flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-2xl font-medium text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 w-full sm:w-auto"
+      >
+        {isLoading ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Send className="w-4 h-4" />
+        )}
+        <span>Send</span>
+      </motion.button>
+    </div>
+  </form>
+</div>
     </div>)}
     </>
   );

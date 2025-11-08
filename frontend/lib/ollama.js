@@ -8,7 +8,7 @@ class GroqClient {
     });
   }
 
-  async chatCompletion(messages, model = 'llama-3.1-8b-instant', options = {}) {
+  async chatCompletion(messages, model, options = {}) {
     try {
       console.log(`🔄 Getting chat response from Groq ${model}...`);
       
@@ -30,7 +30,7 @@ class GroqClient {
     }
   }
   
-  async chatCompletionStream(messages, model = 'llama-3.1-8b-instant', options = {}) {
+  async chatCompletionStream(messages, model, options = {}) {
     try {
       console.log(`🌀 Getting streaming chat response from Groq ${model}...`);
       
