@@ -5,7 +5,7 @@ import { useSignIn, useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Mail, Lock, ArrowRight, LogIn, Brain } from "lucide-react";
+import { Eye, EyeOff, Mail, Lock, ArrowRight, Brain } from "lucide-react";
 
 export default function SignInPage() {
   const {user} = useUser();
@@ -156,8 +156,7 @@ export default function SignInPage() {
             </p>
           </motion.div>
 
-          {/* OAuth Buttons */}
-          <div className="space-y-4 mb-8">
+          {/* <div className="space-y-4 mb-8">
             <motion.button
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.98 }}
@@ -189,8 +188,6 @@ export default function SignInPage() {
               </span>
             </motion.button>
           </div>
-
-          {/* Divider */}
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -202,7 +199,7 @@ export default function SignInPage() {
             <div className="relative flex justify-center">
               <span className="px-3 bg-transparent text-white/60 text-sm">Or continue with email</span>
             </div>
-          </motion.div>
+          </motion.div> */}
 
           {/* Sign In Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
