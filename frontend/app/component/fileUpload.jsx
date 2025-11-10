@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useUser } from "@clerk/clerk-react";
 
-export function FileUpload({ onClose }) {
+export function FileUpload({ onClose , sessionId}) {
   const { isSignedIn , user} = useUser();
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
@@ -78,6 +78,7 @@ export function FileUpload({ onClose }) {
         const formData = new FormData();
         formData.append("files", file);
         formData.append("userId" , user?.id);
+        formData.append("sessionId" , sessionId);
         
 
         const response = await fetch("/api/upload", {

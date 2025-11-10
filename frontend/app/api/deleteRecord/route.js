@@ -4,7 +4,6 @@ import { getPineconeIndex } from "@/lib/vectorDB";
 
 export async function POST(request) {
   try {
-    // Check Pinecone connection first
     try {
       await getPineconeIndex();
     } catch (error) {

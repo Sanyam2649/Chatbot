@@ -1,7 +1,9 @@
-import { getPineconeIndex } from './vectorDB';
+import { getPineconeChatIndex, getPineconeIndex } from './vectorDB';
 import hfEmbeddings from './huggingFace';
+import chatSession from '@/models/chatSession';
+import { connectToDatabase } from './mongoDB';
 
-export async function storeDocuments({documents, userId}) {
+export async function storeDocuments({documents, userId , sessionId}) {
   const index = await getPineconeIndex();
   
   try {
@@ -21,11 +23,12 @@ export async function storeDocuments({documents, userId}) {
         fileSize: doc.metadata.fileSize,
         chunkIndex: doc.metadata.chunkIndex,
         totalChunks: doc.metadata.totalChunks,
-        text: doc.text.substring(0, 1000), // Store first 1000 chars for preview
+        text: doc.text.substring(0, 1000),
         uploadedAt: doc.metadata.uploadedAt,
         pageCount: doc.metadata.pageCount || 0,
         chunkId: doc.metadata.chunkId,
-        userId : userId
+        userId : userId,
+        sessionId : sessionId
       }
     }));
     
@@ -47,7 +50,82 @@ export async function storeDocuments({documents, userId}) {
   }
 }
 
-export async function searchSimilarDocuments({ query, limit = 5, userId }) {
+function generateChatVectorId(sessionId, timestamp = Date.now()) {
+  return `${sessionId}-${timestamp}`;
+}
+
+export async function saveMessageToVectorStore({ userId, sessionId, role, message }) {
+  try {
+    const index = await getPineconeChatIndex();
+
+    console.log(`💬 Generating embedding for chat message (user: ${userId}, session: ${sessionId})...`);
+
+    const embedding = await hfEmbeddings.generateEmbeddings([message]);
+    const vector = embedding[0];
+
+    const vectorId = generateChatVectorId(sessionId, Date.now());
+
+    const payload = {
+      id: vectorId,
+      values: vector,
+      metadata: {
+        userId,
+        sessionId,
+        role,
+        text: message.substring(0, 1000),
+        createdAt: new Date().toISOString(),
+      },
+    };
+
+    console.log(`🚀 Saving chat message vector ${vectorId} to Pinecone...`);
+    await index.upsert([payload]);
+
+    return { success: true, id: vectorId };
+  } catch (error) {
+    console.error('❌ Error saving message to Pinecone:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function searchSimilarMessages({ query, userId, sessionId, topK = 5 }) {
+  try {
+    const index = await getPineconeChatIndex();
+    const queryEmbedding = await hfEmbeddings.generateEmbeddings([query]);
+
+    const results = await index.query({
+      vector: queryEmbedding[0],
+      topK,
+      filter: {
+        userId: userId,
+        sessionId: sessionId,
+      },
+      includeMetadata: true,
+    });
+
+    if (!results?.matches?.length) {
+      return { success: true, matches: [] };
+    }
+
+    // Clean up structure for easier use
+    const matches = results.matches.map((m) => ({
+      id: m.id,
+      score: m.score,
+      metadata: {
+        text: m.metadata?.text || "",
+        role: m.metadata?.role || "user",
+        userId: m.metadata?.userId,
+        sessionId: m.metadata?.sessionId,
+      },
+    }));
+
+    return { success: true, matches };
+  } catch (error) {
+    console.error("❌ Error searching chat messages:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function searchSimilarDocuments({ query, limit = 5, userId , sessionId }) {
   const index = await getPineconeIndex();
 
   try {
@@ -64,7 +142,8 @@ export async function searchSimilarDocuments({ query, limit = 5, userId }) {
       includeMetadata: true,
       includeValues: false,
       filter: {
-        userId: userId, // Only fetch results belonging to this user
+        userId: userId,
+        sessionId : sessionId
       },
     });
 
@@ -91,6 +170,7 @@ export async function searchSimilarDocuments({ query, limit = 5, userId }) {
         uploadedAt: match.metadata.uploadedAt,
         chunkId: match.metadata.chunkId,
         userId: match.metadata.userId,
+        sessionId : match.metadata.sessionId
       },
     }));
 
@@ -118,8 +198,6 @@ export async function searchSimilarDocuments({ query, limit = 5, userId }) {
   }
 }
 
-
-// Get statistics about stored vectors
 export async function getVectorStats() {
   try {
     const index = await getPineconeIndex();
@@ -140,18 +218,14 @@ export async function getVectorStats() {
   }
 }
 
-// lib/vector-store.js
 export async function deleteVectorsByUserId(userId) {
   try {
     const index = await getPineconeIndex();
-    console.log(Object.keys(index))
 
     if (!userId) throw new Error("User ID is required to delete vectors");
 
-    console.log(`🗑️ Deleting all vectors for user: ${userId}`);
-    const ns = await index.namespace("");
-    const deleteResponse = await ns.deleteMany({
-      filter: { userId: userId }
+    const deleteResponse = await index.deleteMany({
+      userId : userId,
     });
 
     return {
@@ -168,10 +242,63 @@ export async function deleteVectorsByUserId(userId) {
   }
 }
 
+export async function deleteChatSession(sessionId, userId) {
+  try {
+    if (!sessionId || !userId) {
+      throw new Error("Both sessionId and userId are required to delete session vectors");
+    }
 
+    const index = await getPineconeChatIndex();
+    const deleteResponse = await index.delete({
+      deleteAll: false,
+      filter: {
+        userId: `${userId}`,
+        sessionId: `${sessionId}`,
+      },
+    });
 
+    return {
+      success: true,
+      message: `Deleted chats for user ${userId}, session ${sessionId}`,
+      response: deleteResponse,
+    };
+  } catch (error) {
+    console.error("❌ Error deleting session chats:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+export async function deleteLongTermMemory(sessionId, userId) {
+  try {
+    if (!sessionId || !userId) {
+      throw new Error("Both sessionId and userId are required to delete long-term memory");
+    }
 
-// Enhanced hybrid scoring
+    await connectToDatabase();
+    const deleteResult = await chatSession.deleteOne({ sessionId, userId });
+
+    if (deleteResult.deletedCount === 0) {
+      return {
+        success: false,
+        message: `No long-term memory found for user ${userId}, session ${sessionId}`,
+      };
+    }
+
+    return {
+      success: true,
+      message: `Deleted long-term memory for user ${userId}, session ${sessionId}`,
+    };
+  } catch (error) {
+    console.error("❌ Error deleting long-term memory:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
 function calculateHybridScore(match, query) {
   const semanticWeight = 0.6;
   const keywordWeight = 0.4;
@@ -203,7 +330,6 @@ function calculateKeywordRelevance(text, query) {
   return score / queryKeywords.length;
 }
 
-// Helper function to generate unique vector IDs
 function generateVectorId(fileName, chunkIndex) {
   const timestamp = Date.now();
   const safeFileName = fileName.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50);

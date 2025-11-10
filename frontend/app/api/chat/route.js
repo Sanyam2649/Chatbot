@@ -1,140 +1,113 @@
 import { NextResponse } from 'next/server';
-import { searchSimilarDocuments } from '@/lib/vector-store';
+import { saveMessageToVectorStore, searchSimilarDocuments, searchSimilarMessages } from '@/lib/vector-store';
 import groq from '@/lib/ollama';
+import { saveMessage } from '@/lib/chatSession';
 
 export async function POST(request) {
   try {
-    const { message, userId , isDeepThinking } = await request.json();
+    const { message, userId, sessionId, isDeepThinking } = await request.json();
+
     if (!message?.trim()) {
-      return NextResponse.json({ error: 'Message is required' }, { status: 400 });
+      return NextResponse.json({ error: "Message is required" }, { status: 400 });
     }
-    const docResults = await searchSimilarDocuments({
-  query: message,
-  userId,
-});
 
-    if (docResults?.success && docResults.matches?.length > 0) {
-      const context = docResults.matches
-        .map(
-          (match, i) =>
-            `Excerpt ${i + 1} (from ${match.metadata.fileName}):\n${match.text}`
-        )
-        .join('\n\n');
+    // 1️⃣ Try to find similar chat messages (short-term memory)
+    const chatResults = await searchSimilarMessages({ query: message, userId, sessionId });
 
-      const messages = [
-        {
-          role: 'system',
-          content: `You are a helpful document assistant. Use the provided context to answer the user's question.
-If the answer is not in the context, say you cannot find it instead of guessing.`
-        },
-        {
-          role: 'user',
-          content: `Context:\n${context}\n\nQuestion: ${message}`
-        }
-      ];
-      
-      const selectedModel = isDeepThinking
-        ? process.env.HIGHER_MODAL
-        : process.env.NORMAL_MODAL;
-        
-      const response = await groq.chatCompletion(messages, selectedModel, {
+    // 2️⃣ If no useful chat memory found, fall back to document memory
+    let contextSource = "memory";
+    let contextMatches = chatResults?.matches || [];
+
+    if (!contextMatches?.length) {
+      const docResults = await searchSimilarDocuments({ query: message, userId, sessionId });
+      contextMatches = docResults?.matches || [];
+      if (contextMatches.length) contextSource = "document";
+    }
+
+    // 3️⃣ Build system + user messages based on available context
+    let systemPrompt;
+    let userPrompt;
+
+    if (contextMatches.length && contextSource === "memory") {
+      const context = contextMatches
+        .map((m, i) => `Past chat ${i + 1}:\n${m.metadata.text}`)
+        .join("\n\n");
+
+      systemPrompt = `You are a helpful assistant who remembers context from this user's past messages.
+Use the past chat context if relevant to respond naturally and consistently.
+If not relevant, answer using your own knowledge.`;
+
+      userPrompt = `Past chat context:\n${context}\n\nCurrent message: ${message}`;
+    }
+
+    else if (contextMatches.length && contextSource === "document") {
+      const context = contextMatches
+        .map((m, i) => `Excerpt ${i + 1} (from ${m.metadata.fileName}):\n${m.text}`)
+        .join("\n\n");
+
+      systemPrompt = `You are a document assistant. Use the provided excerpts to answer precisely.
+If the answer isn't present in them, say you don't have enough info instead of guessing.`;
+
+      userPrompt = `Context:\n${context}\n\nQuestion: ${message}`;
+    }
+
+    else {
+      systemPrompt = `You are a calm, focused AI assistant.
+Keep responses clear, grounded, and conversational.
+If user greets you, greet back briefly.
+If user asks about documents, remind them they need to upload first.`;
+
+      userPrompt = message;
+      contextSource = "general";
+    }
+
+    // 4️⃣ Generate the model's reply
+    const selectedModel = isDeepThinking
+      ? process.env.HIGHER_MODAL
+      : process.env.NORMAL_MODAL;
+
+    const response = await groq.chatCompletion(
+      [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      selectedModel,
+      {
         temperature: isDeepThinking ? 0.2 : 0.1,
         max_tokens: isDeepThinking ? 4096 : 1024,
-      });
+      }
+    );
 
-      return NextResponse.json({
-        response: response.choices[0].message.content,
-        sources: docResults.matches.map(m => ({
-          fileName: m.metadata.fileName,
-          chunkIndex: m.metadata.chunkIndex,
-          score: m.hybridScore
-        })),
-        type: 'document',
-        debug: {
-          message: 'Used document context',
-          matchesFound: docResults.matches.length,
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
+    const aiMessage = response.choices[0].message.content;
 
-   const messages = [
-  {
-    role: "system",
-    content: `You are a calm, intelligent AI assistant who responds conversationally but with focus. 
-Keep answers clear, relevant, and human-like — not robotic. 
-
-If the user greets you (e.g., "hi", "hello", "hey"), respond naturally with a brief, warm greeting back. 
-If they ask a question, answer it directly and helpfully. 
-If they mention documents or files, tell them they need to upload documents first for document-specific answers.
-
-Never over-explain or repeat yourself unless asked. Stay concise and helpful.
-
-User’s message: ${message}`
-  },
-  { role: "user", content: message }
-];
-
-    
-  const selectedModel = isDeepThinking 
-  ? process.env.HIGHER_MODAL
-  : process.env.NORMAL_MODAL;
-  
-   console.log(selectedModel);
-
-
-const response = await groq.chatCompletion(messages, selectedModel, {
-  temperature: isDeepThinking ? 0.2 : 0.1,
-  max_tokens: isDeepThinking ? 4096 : 1024, 
-});
+    // 5️⃣ Save both user + AI messages (for long-term persistence & memory)
+    await Promise.all([
+      saveMessage({ userId, sessionId, role: "user", message }),
+      saveMessage({ userId, sessionId, role: "assistant", message: aiMessage }),
+      saveMessageToVectorStore({ userId, sessionId, role: "user", message }),
+      saveMessageToVectorStore({ userId, sessionId, role: "assistant", message: aiMessage }),
+    ]);
 
     return NextResponse.json({
-      response: response.choices[0].message.content,
-      sources: [],
-      type: 'ai',
+      response: aiMessage,
+      type: contextSource,
       debug: {
-        message: 'Using fallback (no document matches)',
-        timestamp: new Date().toISOString()
-      }
+        contextUsed: contextSource,
+        matches: contextMatches.length,
+        timestamp: new Date().toISOString(),
+      },
     });
-
   } catch (error) {
-    console.error('❌ Chat API error:', error);
-    
+    console.error("❌ Chat API error:", error);
     return NextResponse.json(
-      { 
-        error: 'Failed to process message',
+      {
+        error: "Failed to process message",
         details: error.message,
-        suggestion: 'Please try again with a different question'
       },
       { status: 500 }
     );
   }
 }
-
-// function getQuickResponse(userMessage) {
-//   const greetings = ['hi', 'hello', 'hey', 'hola', 'greetings', 'good morning', 'good afternoon', 'good evening'];
-//   const capabilities = ['what can you do', 'how do you work', 'who are you', 'help', 'capabilities'];
-//   const thanks = ['thanks', 'thank you', 'thankyou', 'appreciate it'];
-  
-//   if (greetings.some(greet => new RegExp(`\\b${greet}\\b`, 'i').test(userMessage))) {
-//     return quickResponses.greetings[Math.floor(Math.random() * quickResponses.greetings.length)];
-//   }
-  
-//   if (capabilities.some(cap => userMessage.includes(cap))) {
-//     return quickResponses.capabilities[Math.floor(Math.random() * quickResponses.capabilities.length)];
-//   }
-  
-//   if (thanks.some(thank => userMessage.includes(thank))) {
-//     return "You're welcome! Is there anything else I can help you with?";
-//   }
-  
-//   if (userMessage.includes('how are you')) {
-//     return "I'm functioning well and ready to help you with your documents!";
-//   }
-  
-//   return null;
-// }
 
 export async function GET() {
   try {
