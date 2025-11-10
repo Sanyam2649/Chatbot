@@ -249,12 +249,8 @@ export async function deleteChatSession(sessionId, userId) {
     }
 
     const index = await getPineconeChatIndex();
-    const deleteResponse = await index.delete({
-      deleteAll: false,
-      filter: {
-        userId: `${userId}`,
-        sessionId: `${sessionId}`,
-      },
+    const deleteResponse = await index.deleteMany({
+        sessionId: sessionId
     });
 
     return {
