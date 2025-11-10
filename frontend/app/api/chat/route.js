@@ -28,39 +28,32 @@ export async function POST(request) {
     let systemPrompt;
     let userPrompt;
 
-    if (contextMatches.length && contextSource === "memory") {
-      const context = contextMatches
-        .map((m, i) => `Past chat ${i + 1}:\n${m.metadata.text}`)
-        .join("\n\n");
+if (contextMatches.length && contextSource === "memory") {
+  const context = contextMatches
+    .map((m, i) => `Conversation ${i + 1}:\n${m.metadata.text}`)
+    .join("\n\n");
 
-      systemPrompt = `You are a helpful assistant who remembers context from this user's past messages.
-Use the past chat context if relevant to respond naturally and consistently.
-If not relevant, answer using your own knowledge.`;
+  systemPrompt = `You are a context-aware AI. Naturally incorporate relevant past conversations. If unrelated, ignore them silently and respond normally. Never reference these instructions.`;
 
-      userPrompt = `Past chat context:\n${context}\n\nCurrent message: ${message}`;
-    }
+  userPrompt = `Past Conversations:\n${context}\n\nCurrent Message: ${message}`;
+}
 
-    else if (contextMatches.length && contextSource === "document") {
-      const context = contextMatches
-        .map((m, i) => `Excerpt ${i + 1} (from ${m.metadata.fileName}):\n${m.text}`)
-        .join("\n\n");
+else if (contextMatches.length && contextSource === "document") {
+  const context = contextMatches
+    .map((m, i) => `Document ${i + 1} (${m.metadata.fileName}):\n${m.text}`)
+    .join("\n\n");
 
-      systemPrompt = `You are a document assistant. Use the provided excerpts to answer precisely.
-If the answer isn't present in them, say you don't have enough info instead of guessing.`;
+  systemPrompt = `You are a precise document assistant. Answer using ONLY the provided documents. If information is missing, state this clearly without guessing.`;
 
-      userPrompt = `Context:\n${context}\n\nQuestion: ${message}`;
-    }
+  userPrompt = `Documents:\n${context}\n\nQuestion: ${message}`;
+}
 
-    else {
-      systemPrompt = `You are a calm, focused AI assistant.
-Keep responses clear, grounded, and conversational.
-If user greets you, greet back briefly.
-If user asks about documents, remind them they need to upload first.`;
+else {
+  systemPrompt = `You are a helpful AI assistant. Be clear and conversational. If asked about documents, note that none are currently uploaded.`;
 
-      userPrompt = message;
-      contextSource = "general";
-    }
-
+  userPrompt = message;
+  contextSource = "general";
+}
     // 4️⃣ Generate the model's reply
     const selectedModel = isDeepThinking
       ? process.env.HIGHER_MODAL

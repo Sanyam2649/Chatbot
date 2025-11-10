@@ -1,4 +1,5 @@
 import { deleteChatSession } from "@/lib/vector-store";
+import { NextResponse } from "next/server";
 
 export async function POST(request) {
   try {
@@ -27,7 +28,7 @@ export async function POST(request) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("❌ /api/chat/clear-session error:", error);
+    console.error("❌ /api/chat/deleteChat error:", error);
     return NextResponse.json(
       { success: false, error: error.message || "Unknown error" },
       { status: 500 }
